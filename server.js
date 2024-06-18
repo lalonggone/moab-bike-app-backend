@@ -4,6 +4,8 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { User } = require('./models');
+const verifyToken = require('./verifyToken');
+const { auth } = require('./firebaseAdmin');
 
 const app = express();
 app.use(bodyParser.json());
@@ -43,8 +45,31 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// Google Sign-In
+app.post('/google-signin', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    const decodedToken = await auth.verifyIdToken(token);
+    const { uid, email, name, picture } = decodedToken;
+
+    let user = await User.findOne({ where: { email } });
+    if (!user) {
+      user = await User.create({ uid, email, name, profile_picture: picture });
+    }
+
+    res.status(200).json({ user });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Example of a protected route
+app.get('/protected', verifyToken, (req, res) => {
+  res.json({ message: 'This is a protected route', user: req.user });
+});
+
 // Create a new user
-app.post('/users', async (req, res) => {
+app.post('/users', verifyToken, async (req, res) => {
   try {
     const user = await User.create(req.body)
     res.status(201).json(user)
@@ -54,7 +79,7 @@ app.post('/users', async (req, res) => {
 })
 
 // Get all users
-app.get('/users', async (req, res) => {
+app.get('/users', verifyToken, async (req, res) => {
   try {
     const users = await User.findAll()
     res.json(users)
@@ -64,7 +89,7 @@ app.get('/users', async (req, res) => {
 })
 
 // Get a user by email
-app.get('/users/:email', async (req, res) => {
+app.get('/users/:email', verifyToken, async (req, res) => {
   try {
     const user = await User.findOne({ where: { email: req.params.email } })
     if (user) {
@@ -78,7 +103,7 @@ app.get('/users/:email', async (req, res) => {
 })
 
 // Update user bio
-app.put('/users/:email', async (req, res) => {
+app.put('/users/:email', verifyToken, async (req, res) => {
   try {
     const [updated] = await User.update(req.body, {
       where: { email: req.params.email },
@@ -97,7 +122,7 @@ app.put('/users/:email', async (req, res) => {
 })
 
 // Delete a user
-app.delete('/users/:email', async (req, res) => {
+app.delete('/users/:email', verifyToken, async (req, res) => {
   try {
     const deleted = await User.destroy({ where: { email: req.params.email } })
     if (deleted) {

@@ -12,7 +12,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     password: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: true
     },
     profile_picture: {
       type: DataTypes.STRING
@@ -20,13 +20,26 @@ module.exports = (sequelize, DataTypes) => {
     bio: {
       type: DataTypes.STRING
     },
-    user_type: {
-      type: DataTypes.STRING
+    account_type: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'individual', 
+      validate: {
+        isIn: [['individual', 'organization']]
+      }
+    },
+    role: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'user',
+      validate: {
+        isIn: [['user', 'admin']]
+      }
     }
   }, {});
   
   User.associate = function(models) {
-    // associations can be defined here
+    User.hasOne(models.UserProfile, { foreignKey: 'userId', as: 'profile' });
   };
   
   return User;

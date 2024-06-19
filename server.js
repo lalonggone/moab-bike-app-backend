@@ -14,18 +14,19 @@ app.use(cors());
 // Register a new user
 app.post('/register', async (req, res) => {
   try {
-    const hashedPassword = await bcrypt.hash(req.body.password, 10)
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
     const user = await User.create({
       name: req.body.name,
       email: req.body.email,
       password: hashedPassword,
-    })
-    const token = jwt.sign({ id: user.id }, 'your_jwt_secret')
-    res.status(201).json({ user, token })
+      account_type: req.body.account_type
+    });
+    const token = jwt.sign({ id: user.id }, 'your_jwt_secret');
+    res.status(201).json({ user, token });
   } catch (error) {
-    res.status(400).json({ error: error.message })
+    res.status(400).json({ error: error.message });
   }
-})
+});
 
 // Login a user
 app.post('/login', async (req, res) => {
@@ -49,16 +50,30 @@ app.post('/login', async (req, res) => {
 app.post('/google-signin', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
+    console.log('Received Google ID Token:', token);
     const decodedToken = await auth.verifyIdToken(token);
+    console.log('Decoded Token:', decodedToken);
+
     const { uid, email, name, picture } = decodedToken;
 
     let user = await User.findOne({ where: { email } });
     if (!user) {
-      user = await User.create({ uid, email, name, profile_picture: picture });
+      user = await User.create({
+        uid, // Note: Make sure `uid` column exists in the model if using this field
+        email,
+        name,
+        profile_picture: picture,
+        account_type: 'individual', // Default value for Google sign-ins
+        role: 'user' // Default value for Google sign-ins
+      });
+      console.log('New User Created:', user);
+    } else {
+      console.log('User Already Exists:', user);
     }
 
     res.status(200).json({ user });
   } catch (error) {
+    console.error('Error in Google Sign-In:', error.message);
     res.status(400).json({ error: error.message });
   }
 });
